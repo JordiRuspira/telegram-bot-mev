@@ -5,7 +5,7 @@ import logging
 import asyncio
 from telegram import Bot
 from telegram.constants import ParseMode
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -52,6 +52,12 @@ def process_data(mev_df, validator_df):
 async def send_telegram_message(bot, message):
     await bot.send_message(chat_id=CHAT_ID, text=message, parse_mode=ParseMode.HTML)
 
+# Function to handle the /start command
+async def start(update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Welcome! I am your MEV bot. I will notify you about MEV values based on your settings."
+    )
+
 # Function to check MEV values
 async def check_mev_values():
     logging.info("Starting MEV value check")
@@ -90,13 +96,10 @@ async def check_mev_values():
 async def main():
     application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    # Schedule the MEV check
-    async def scheduled_task():
-        while True:
-            await check_mev_values()
-            await asyncio.sleep(3600 * settings['interval'])  # Sleep based on the user-defined interval
-
+    # Add command handlers
     application.add_handler(CommandHandler('start', start))
+
+    # Start the bot
     logging.info('Starting bot...')
     await application.run_polling()
 
