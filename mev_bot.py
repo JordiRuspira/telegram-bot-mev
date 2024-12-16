@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import logging
 import asyncio
+import numpy as np
 from telegram import Bot
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 settings = {
     'auto_notify': 'N',
     'interval': 1,  # Default to 1 hour if not set
-    'threshold': 300  # Default to $300 if not set
+    'threshold': 150  # Default to $300 if not set
 }
 
 # Function to get MEV data
@@ -44,9 +45,15 @@ def get_validator_data():
 def process_data(mev_df, validator_df):
     mev_df['value'] = mev_df['value'].astype(float)
     mev_df['height'] = mev_df['height'].astype(int)
-    mev_df['MEV value ($)'] = mev_df['value'] / 10**6
+    # mev_df['MEV value ($)'] = mev_df['value'] / 10**6
+    mev_df['MEV value ($)'] = np.where(
+    mev_df['probability'] != 0, 
+    mev_df['value'] / 10**6, 
+    0
+    )
     merged_df = pd.merge(mev_df, validator_df, left_on='proposer', right_on='pubkey', how='left')
-    return merged_df[merged_df['MEV value ($)'] > settings['threshold']]
+    #return merged_df[merged_df['MEV value ($)'] > settings['threshold']]
+    return merged_df[merged_df['MEV value ($)'] > settings['150']]
 
 # Function to send Telegram message
 async def send_telegram_message(bot, message):
@@ -82,10 +89,10 @@ async def check_mev_values():
     filtered_df = process_data(mev_df, validator_df)
     
     if filtered_df.empty:
-        logging.info(f"No blocks with MEV value higher than ${settings['threshold']}")
+        logging.info(f"No blocks with MEV value higher than ${settings['150']}")
         return
 
-    message = f"Blocks with MEV value higher than ${settings['threshold']}:\n"
+    message = f"Blocks with MEV value higher than ${settings['150']}:\n"
     for _, row in filtered_df.iterrows():
         message += f"Block Height: {row['height']}, MEV Value: ${row['MEV value ($)']:.2f}, Proposer: {row['moniker']}\n"
 
